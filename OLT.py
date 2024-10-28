@@ -56,21 +56,22 @@ class OLT:
             time_window = self.time_distribution[i]
             ends_at: float = self.time + time_window
 
-            def end_flag(evt_time):
+            def continue_flag(evt_time):
                 return (
                     evt_time < ends_at or 
                     (ends_at < 0.1 * TIMER_MAX and 0.9 < evt_time)
                 )
             event_idx, event_time, event_name = self.get_next_event()
-            while end_flag(event_time):
+            while continue_flag(event_time):
                 print(f'Event: {event_name} at ONU {event_idx}')
-                event_onu = self.onus[i]
                 if (event_idx == i):
                     # Manage event at allowed ONU
-                    pass
+                    if (event_name == 'IDLE'):
+                        pass
+                    elif (event_name == 'MESSAGE'):
+                        pass
                 else:
-                    # Manage event at un-allowed ONU
-                    pass
+                    event_onu = self.onus[i]
             event_idx, event_time, event_name = self.get_next_event()
 
 
