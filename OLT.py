@@ -22,12 +22,6 @@ class OLT:
         self.time_distribution = time_distribution
 
 
-    def fitness_function(self):
-        val = 0.0
-        for onu in self.onus:
-            val += onu.WAITED
-        return 1 / val
-
     def get_next_event(self):
         next_onu_event_index: int = 0
         next_onu_event_time: float = float('inf')
@@ -54,15 +48,54 @@ class OLT:
             next_onu_event_type
         )
 
+            
+    def round(self):
+        for i in range(len(self.time_distribution)):
+            print(f'Time Window for ONU: {i}')
+            onu = self.onus[i]
+            time_window = self.time_distribution[i]
+            ends_at: float = self.time + time_window
+
+            def end_flag(evt_time):
+                return (
+                    evt_time < ends_at or 
+                    (ends_at < 0.1 * TIMER_MAX and 0.9 < evt_time)
+                )
+            event_idx, event_time, event_name = self.get_next_event()
+            while end_flag(event_time):
+                print(f'Event: {event_name} at ONU {event_idx}')
+                event_onu = self.onus[i]
+                if (event_idx == i):
+                    # Manage event at allowed ONU
+                    pass
+                else:
+                    # Manage event at un-allowed ONU
+                    pass
+            event_idx, event_time, event_name = self.get_next_event()
 
 
-    def DBA(self):
-        pass
+    def round_scheduler(self, N):
+        for _ in range(N):
+            self.round()
 
 
-    def schedule_messages(self):
-        pass
+    def fitness_function(self):
+        val = 0.0
+        for onu in self.onus:
+            val += onu.WAITED
+        return 1 / val
 
 
-    def update(self):
-        pass
+    def optimizer(self):
+        fit = self.fitness_function()
+
+
+    def DBA(self, N, K):
+        for _ in range(K):
+            # Reset ONU waited
+            for onu in self.onus:
+                onu.WAITED = 0.0
+
+            self.round_scheduler(N)
+            self.optimizer()
+
