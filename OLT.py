@@ -11,7 +11,7 @@ import numpy as np
 class OptimizerACO:
     def __init__(
                 self,
-                time_paths: List[float],
+                time_paths,
                 n_onus: int,
                 forget_factor: float = 0.7,
                 update_factor: float = 0.3
@@ -28,7 +28,7 @@ class OptimizerACO:
     def update(self, demmand):
         self.pheromones *= self.forget_factor
         for i in range(self.n_onus):
-            delta = np.abs(self.time_paths - demmand[i] - 100e-3) + 0.01
+            delta = np.abs(self.time_paths - demmand[i]) + 0.01
             # print(f'ONU {i} deltas:')
             # print(delta)
             self.pheromones[i] += 1/delta * self.update_factor
@@ -138,15 +138,15 @@ class OLT:
 
             def continue_flag(evt_time):
                 return (
-                    evt_time < window_ends_at or 
-                    (window_ends_at < 0.1 * TIMER_MAX and 0.9 * TIMER_MAX < evt_time)
+                    evt_time < window_ends_at or
+                    (window_ends_at < 0.2 * TIMER_MAX and 0.8 * TIMER_MAX < evt_time)
                 )
 
             event_onu_idx, event_time = self.get_next_message_event()
             while continue_flag(event_time):
                 while (current_message_ends_at != None and
                         ( current_message_ends_at < event_time or
-                          (event_time < 0.1 * TIMER_MAX and 0.9 * TIMER_MAX < current_message_ends_at)
+                          (event_time < 0.2 * TIMER_MAX and 0.8 * TIMER_MAX < current_message_ends_at)
                        )):
                     self.time = current_message_ends_at
                     allowed_onu.dequeue_message()
@@ -206,6 +206,11 @@ class OLT:
             demmand /= N
             self.optimizer.update(demmand=demmand)
             self.time_distribution = self.optimizer.get_time_distribution()
+            # print('-' * 32)
+            # print(f'DEMMAND: {demmand}')
+            # print(f'UPDATE TIME DIST: {self.time_distribution}')
+            # print('-' * 32)
+
 
 
     def simulate(self, n_rounds=100_000, round_size=10):
@@ -223,26 +228,7 @@ if __name__ == '__main__':
         120e-3,
         120e-3
     ]
-    time_paths = [
-        60e-3,
-        80e-3,
-        100e-3,
-        120e-3,
-        140e-3,
-        160e-3,
-        180e-3,
-        200e-3,
-        220e-3,
-        240e-3,
-        260e-3,
-        280e-3,
-        300e-3,
-        320e-3,
-        340e-3,
-        360e-3,
-        380e-3,
-        400e-3
-    ]
+    time_paths = np.arange(10e-3, 420e-3, 10e-3)
     optimizer = OptimizerACO(
         time_paths=time_paths,
         n_onus=len(onus)
@@ -257,8 +243,8 @@ if __name__ == '__main__':
     )
     t_start = time()
     olt.simulate(
-        n_rounds=100_000,
-        round_size=1
+        n_rounds=10_000,
+        round_size=10
     )
     for onu in olt.onus:
         print(f'queue len: {len(onu.message_queue)}')

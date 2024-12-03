@@ -39,6 +39,7 @@ class ONU:
         self.MESSAGE_QUEUE_LENGTH = MESSAGE_QUEUE_LENGTH
         self.next_message_event = 0.0
         self.schedule_events()
+        self.message_queue = deque([])
 
 
     def schedule_events(self):
