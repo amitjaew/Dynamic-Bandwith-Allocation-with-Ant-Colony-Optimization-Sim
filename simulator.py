@@ -81,15 +81,27 @@ if __name__ == '__main__':
         ),
     ]
     time_paths = np.arange(200e-3, 2_200e-3, 200e-3)
+    #results/01.pkl
+    # base_time_dist = [
+    #     0.25,
+    #     0.25,
+    #     0.25,
+    #     0.25,
+    #     0.084,
+    #     0.084,
+    #     0.084,
+    #     0.084,
+    # ]
+    # results/02.pkl
     base_time_dist = [
-        0.25,
-        0.25,
-        0.25,
-        0.25,
-        0.084,
-        0.084,
-        0.084,
-        0.084,
+        200e-3,
+        200e-3,
+        200e-3,
+        200e-3,
+        200e-3,
+        200e-3,
+        200e-3,
+        200e-3,
     ]
     optimizer = OptimizerACO(
         time_paths=time_paths,
@@ -99,8 +111,8 @@ if __name__ == '__main__':
         onus=onus,
         time_distribution=base_time_dist,
         optimizer=optimizer,
-        mode='OPTIMIZED',
-        #mode='FIXED_DISTRIBUTION',
+        #mode='OPTIMIZED',
+        mode='FIXED_DISTRIBUTION',
         verbose=False,
         debug=False
     )

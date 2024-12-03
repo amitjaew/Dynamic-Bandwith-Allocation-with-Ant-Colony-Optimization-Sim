@@ -14,12 +14,10 @@ class OptimizerACO:
                 self,
                 time_paths,
                 n_onus: int,
-                forget_factor: float = 0.8,
-                update_factor: float = 0.2
+                learning_rate: float = 0.2,
             ):
         self.time_paths = np.array(time_paths, dtype='float64')
-        self.forget_factor = forget_factor
-        self.update_factor = update_factor
+        self.learning_rate = learning_rate
         self.n_onus = n_onus
         self.pheromones = np.ones((
             n_onus,
@@ -27,10 +25,10 @@ class OptimizerACO:
         )) / len(time_paths)
 
     def update(self, demmand):
-        self.pheromones *= self.forget_factor
+        self.pheromones *= (1 - self.learning_rate)
         for i in range(self.n_onus):
             delta = np.abs(self.time_paths - demmand[i]) + 0.0001
-            self.pheromones[i] += 1/delta * self.update_factor
+            self.pheromones[i] += 1/delta * self.learning_rate
     
     def get_time_distribution(self):
         valid_indexes = [i for i in range(len(self.time_paths))]
@@ -111,7 +109,7 @@ class OLT:
         return (
             None,
             None,
-            self.mean_pheromones,
+            self.mean_demmand,
             blocking_rate
         )
         
