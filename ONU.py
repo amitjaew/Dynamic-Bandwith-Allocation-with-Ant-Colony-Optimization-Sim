@@ -30,9 +30,9 @@ class ONU:
 
     def __init__(
                 self,
-                mean_arrival_period: float = 200e-3, # 120 ns o 0.12 [microsegundos]
-                mean_message_length: float = 40e-3, # ~ 200 bits a 0.8 bits por ns [en microsegundos]
-                MESSAGE_QUEUE_LENGTH:int = 2048  # Limite estandar para router Cisco
+                mean_arrival_period: float = 300, #  cada 500 [microsegundos]
+                mean_message_length: float = 400e-3, # ~ 200 bits a 0.8 bits por ns [en microsegundos]
+                MESSAGE_QUEUE_LENGTH:int = 512  # Limite estandar para router Cisco
             ):
         self.mean_arrival_period = mean_arrival_period
         self.mean_message_length = mean_message_length

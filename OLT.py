@@ -13,8 +13,8 @@ class OptimizerACO:
                 self,
                 time_paths,
                 n_onus: int,
-                forget_factor: float = 0.7,
-                update_factor: float = 0.3
+                forget_factor: float = 0.8,
+                update_factor: float = 0.2
             ):
         self.time_paths = np.array(time_paths, dtype='float64')
         self.forget_factor = forget_factor
@@ -28,17 +28,13 @@ class OptimizerACO:
     def update(self, demmand):
         self.pheromones *= self.forget_factor
         for i in range(self.n_onus):
-            delta = np.abs(self.time_paths - demmand[i]) + 0.01
+            delta = np.abs(self.time_paths - demmand[i]) + 0.0001
             # print(f'ONU {i} deltas:')
             # print(delta)
             self.pheromones[i] += 1/delta * self.update_factor
-        # print(f'demmand: {demmand}')
+        print(f'demmand: {demmand}')
         # print(f'update: \n{self.time_paths}\n{self.pheromones}')
-        #sleep(1)
-
-        # for i in range(len(self.time_paths)):
-        #     delta = np.abs(demmand - self.time_paths) + 0.1
-        #     self.pheromones[i] += 1/delta * self.update_factor
+        # sleep(1)
 
     def get_time_distribution(self):
         valid_indexes = [i for i in range(len(self.time_paths))]
@@ -121,7 +117,7 @@ class OLT:
             time_window = self.time_distribution[allowed_onu_idx]
             window_ends_at: float = self.time + time_window
 
-            if (not allowed_onu.current_message):
+            if (allowed_onu.current_message == None):
                 allowed_onu.dequeue_message()
             
             current_message_ends_at = None
@@ -139,14 +135,14 @@ class OLT:
             def continue_flag(evt_time):
                 return (
                     evt_time < window_ends_at or
-                    (window_ends_at < 0.2 * TIMER_MAX and 0.8 * TIMER_MAX < evt_time)
+                    (window_ends_at < 0.1 * TIMER_MAX and 0.9 * TIMER_MAX < evt_time)
                 )
 
             event_onu_idx, event_time = self.get_next_message_event()
             while continue_flag(event_time):
                 while (current_message_ends_at != None and
                         ( current_message_ends_at < event_time or
-                          (event_time < 0.2 * TIMER_MAX and 0.8 * TIMER_MAX < current_message_ends_at)
+                          (event_time < 0.1 * TIMER_MAX and 0.9 * TIMER_MAX < current_message_ends_at)
                        )):
                     self.time = current_message_ends_at
                     allowed_onu.dequeue_message()
@@ -212,8 +208,9 @@ class OLT:
             # print('-' * 32)
 
 
+    def simulate(self, n_iter=1_000_000, round_size=10):
+        n_rounds = n_iter // round_size
 
-    def simulate(self, n_rounds=100_000, round_size=10):
         self.time = 0.0
         for _ in range(n_rounds):
             self.round(N=round_size)
@@ -221,21 +218,56 @@ class OLT:
 
 if __name__ == '__main__':
     onus = [
-        ONU(),
-        ONU()
+        ONU(
+            mean_arrival_period=30, #  cada 500 [microsegundos]
+            mean_message_length=120e-3, # ~ 200 bits a 0.8 bits por ns [en microsegundos]
+            MESSAGE_QUEUE_LENGTH=512  # Limite estandar para router Cisco
+        ),
+        ONU(
+            mean_arrival_period=30, #  cada 500 [microsegundos]
+            mean_message_length=120e-3, # ~ 200 bits a 0.8 bits por ns [en microsegundos]
+            MESSAGE_QUEUE_LENGTH=512  # Limite estandar para router Cisco
+        ),
+        ONU(
+            mean_arrival_period=30, #  cada 500 [microsegundos]
+            mean_message_length=120e-3, # ~ 200 bits a 0.8 bits por ns [en microsegundos]
+            MESSAGE_QUEUE_LENGTH=512  # Limite estandar para router Cisco
+        ),
+        ONU(
+            mean_arrival_period=30, #  cada 500 [microsegundos]
+            mean_message_length=120e-3, # ~ 200 bits a 0.8 bits por ns [en microsegundos]
+            MESSAGE_QUEUE_LENGTH=512  # Limite estandar para router Cisco
+        ),
+        ONU(
+            mean_arrival_period=30, #  cada 500 [microsegundos]
+            mean_message_length=40e-3, # ~ 200 bits a 0.8 bits por ns [en microsegundos]
+            MESSAGE_QUEUE_LENGTH=512  # Limite estandar para router Cisco
+        ),
+        ONU(
+            mean_arrival_period=30, #  cada 500 [microsegundos]
+            mean_message_length=40e-3, # ~ 200 bits a 0.8 bits por ns [en microsegundos]
+            MESSAGE_QUEUE_LENGTH=512  # Limite estandar para router Cisco
+        ),
+        ONU(
+            mean_arrival_period=30, #  cada 500 [microsegundos]
+            mean_message_length=40e-3, # ~ 200 bits a 0.8 bits por ns [en microsegundos]
+            MESSAGE_QUEUE_LENGTH=512  # Limite estandar para router Cisco
+        ),
+        ONU(
+            mean_arrival_period=30, #  cada 500 [microsegundos]
+            mean_message_length=40e-3, # ~ 200 bits a 0.8 bits por ns [en microsegundos]
+            MESSAGE_QUEUE_LENGTH=512  # Limite estandar para router Cisco
+        ),
     ]
-    base_time_dist = [
-        120e-3,
-        120e-3
-    ]
-    time_paths = np.arange(10e-3, 420e-3, 10e-3)
+    time_paths = np.arange(1e-3, 2_000e-3, 20e-3)
+    base_time_dist = [ time_paths[i] for i in range(len(onus)) ]
     optimizer = OptimizerACO(
         time_paths=time_paths,
         n_onus=len(onus)
     )
     olt = OLT(
         onus=onus,
-        time_distribution=[0.5, 0.5],
+        time_distribution=base_time_dist,
         optimizer=optimizer,
         mode='OPTIMIZED',
         verbose=False,
@@ -243,7 +275,7 @@ if __name__ == '__main__':
     )
     t_start = time()
     olt.simulate(
-        n_rounds=10_000,
+        n_iter=10_000_000,
         round_size=10
     )
     for onu in olt.onus:
@@ -251,5 +283,10 @@ if __name__ == '__main__':
         p_blocked = onu.BLOCKED_MESSAGES / (onu.SENT_MESSAGES + onu.BLOCKED_MESSAGES)
         print(f'blocked probs: {p_blocked}')
     t_end = time()
+        
+    print('TIME PATHS')
+    print(optimizer.time_paths)
+    print('PHEROMONES')
+    print(optimizer.pheromones)
 
     print(f'elapsed {t_end - t_start} seconds')
