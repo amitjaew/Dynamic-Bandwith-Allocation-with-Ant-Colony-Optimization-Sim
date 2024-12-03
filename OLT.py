@@ -3,6 +3,7 @@ from constants import TIMER_MAX
 from typing import Literal
 from time import sleep, time
 import numpy as np
+import random
 
 
 # GPON upstream = 1.25 [Gbps]
@@ -35,8 +36,12 @@ class OptimizerACO:
         valid_indexes = [i for i in range(len(self.time_paths))]
         results_indexes = np.ndarray(self.n_onus, dtype='int')
         results = np.zeros(self.n_onus)
+        
+        indexes = [i for i in range(self.n_onus)]
+        random.shuffle(indexes)
 
-        for i in range(self.n_onus):
+        #for i in range(self.n_onus):
+        for i in indexes:
             ph = self.pheromones[i]
             ph = ph[valid_indexes]
             probs = ph / ph.sum()

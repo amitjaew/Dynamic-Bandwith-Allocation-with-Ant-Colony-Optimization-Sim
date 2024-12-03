@@ -80,8 +80,17 @@ if __name__ == '__main__':
             MESSAGE_QUEUE_LENGTH=512  # Standard queue for Cisco Router
         ),
     ]
-    time_paths = np.arange(1e-3, 2_000e-3, 200e-3)
-    base_time_dist = [ time_paths[i] for i in range(len(onus)) ]
+    time_paths = np.arange(200e-3, 2_200e-3, 200e-3)
+    base_time_dist = [
+        0.25,
+        0.25,
+        0.25,
+        0.25,
+        0.084,
+        0.084,
+        0.084,
+        0.084,
+    ]
     optimizer = OptimizerACO(
         time_paths=time_paths,
         n_onus=len(onus)
@@ -91,6 +100,7 @@ if __name__ == '__main__':
         time_distribution=base_time_dist,
         optimizer=optimizer,
         mode='OPTIMIZED',
+        #mode='FIXED_DISTRIBUTION',
         verbose=False,
         debug=False
     )
