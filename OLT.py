@@ -1,6 +1,6 @@
 from ONU import ONU
 from constants import TIMER_MAX
-from typing import Literal, Any, List
+from typing import Literal
 from time import sleep, time
 import numpy as np
 
@@ -29,15 +29,11 @@ class OptimizerACO:
         self.pheromones *= self.forget_factor
         for i in range(self.n_onus):
             delta = np.abs(self.time_paths - demmand[i]) + 0.0001
-            # print(f'ONU {i} deltas:')
-            # print(delta)
             self.pheromones[i] += 1/delta * self.update_factor
-        print(f'demmand: {demmand}')
-        # print(f'update: \n{self.time_paths}\n{self.pheromones}')
-        # sleep(1)
-
+    
     def get_time_distribution(self):
         valid_indexes = [i for i in range(len(self.time_paths))]
+        results_indexes = np.ndarray(self.n_onus, dtype='int')
         results = np.zeros(self.n_onus)
 
         for i in range(self.n_onus):
@@ -46,12 +42,11 @@ class OptimizerACO:
             probs = ph / ph.sum()
             selected_index = np.random.choice(valid_indexes, p=probs)
             valid_indexes.remove(selected_index)
+
+            results_indexes[i] = selected_index
             results[i] = self.time_paths[selected_index]
 
-        #print(f'resuls: {results}')
-        #sleep(1)
-
-        return results
+        return results, results_indexes
 
 
 class OLT:
@@ -62,6 +57,59 @@ class OLT:
     verbose: bool = False
     debug: bool = False
 
+    # ------ Metrics --------
+    # time_path_freq: Frequency for each time path at a particular oONU
+    # mean_pheromones: Mean pheromones for each ONU / timepath
+    # mean_demmand: Mean demmand for each ONU
+    # blocking_rate: Ponderated blocking rate for each ONU
+    # -----------------------
+
+    def init_metrics(self):
+        self.time_path_frequency = np.zeros((len(self.onus), len(self.optimizer.time_paths)))
+        self.mean_pheromones = np.zeros(self.optimizer.pheromones.shape)
+        self.mean_demmand = np.zeros(len(self.onus))
+
+    def update_metrics(self, time_path_indexes, N=100_000):
+        #print(time_path_indexes)
+        if (self.mode == 'OPTIMIZED'):
+            self.mean_pheromones += self.optimizer.pheromones/N
+
+        for i in range(len(self.onus)):
+            if (self.mode == 'OPTIMIZED'):
+                self.time_path_frequency[i][time_path_indexes[i]] += 1
+            self.mean_demmand[i] += self.onus[i].demmand/N
+
+    def get_metrics_names(self):
+        return (
+            'time_path_freq: Frequency for each time path at a particular ONU',
+            'mean_pheromones: Mean pheromones for each ONU / timepath',
+            'mean_demmand: Mean demmand for each ONU',
+            'blocking_rate: Ponderated blocking rate for each ONU'
+        )
+
+    def get_metrics(self):
+        blocking_rate = np.zeros(len(self.onus))
+
+        for i in range(len(self.onus)):
+            B_rate = self.onus[i].BLOCKED_MESSAGES
+            S_rate = self.onus[i].SENT_MESSAGES
+
+            blocking_rate[i] = B_rate / (B_rate + S_rate)
+
+        if (self.mode == 'OPTIMIZED'):
+            return (
+                self.time_path_frequency,
+                self.mean_pheromones,
+                self.mean_demmand,
+                blocking_rate
+            )
+        return (
+            None,
+            None,
+            self.mean_pheromones,
+            blocking_rate
+        )
+        
 
     def __init__(
                 self,
@@ -80,6 +128,7 @@ class OLT:
         self.debug = debug
         self.time_distribution = np.array(time_distribution, dtype='float64')
         self.optimizer = optimizer
+        self.init_metrics()
 
 
     def get_next_message_event(self):
@@ -184,8 +233,8 @@ class OLT:
             self.time = window_ends_at
 
 
-    def round(self, N):
-        for _ in range(N):
+    def round(self, round_size, N):
+        for _ in range(round_size):
             if (self.debug):
                 sleep(1)
             self.run_window()
@@ -198,10 +247,25 @@ class OLT:
             demmand = np.zeros(len(self.onus))
             for i in range(len(self.onus)):
                 demmand[i] = self.onus[i].demmand
-                self.onus[i].flush_demmand()
             demmand /= N
             self.optimizer.update(demmand=demmand)
-            self.time_distribution = self.optimizer.get_time_distribution()
+            time_dist, time_dist_indexes = self.optimizer.get_time_distribution()
+            self.time_distribution = time_dist
+
+            self.update_metrics(
+                time_path_indexes=time_dist_indexes,
+                N=N//round_size
+            )
+        else:
+            self.update_metrics(
+                time_path_indexes=None,
+                N=N//round_size
+            )
+
+
+
+        for onu in self.onus:
+            onu.flush_demmand()
             # print('-' * 32)
             # print(f'DEMMAND: {demmand}')
             # print(f'UPDATE TIME DIST: {self.time_distribution}')
@@ -213,80 +277,4 @@ class OLT:
 
         self.time = 0.0
         for _ in range(n_rounds):
-            self.round(N=round_size)
-
-
-if __name__ == '__main__':
-    onus = [
-        ONU(
-            mean_arrival_period=30, #  cada 500 [microsegundos]
-            mean_message_length=120e-3, # ~ 200 bits a 0.8 bits por ns [en microsegundos]
-            MESSAGE_QUEUE_LENGTH=512  # Limite estandar para router Cisco
-        ),
-        ONU(
-            mean_arrival_period=30, #  cada 500 [microsegundos]
-            mean_message_length=120e-3, # ~ 200 bits a 0.8 bits por ns [en microsegundos]
-            MESSAGE_QUEUE_LENGTH=512  # Limite estandar para router Cisco
-        ),
-        ONU(
-            mean_arrival_period=30, #  cada 500 [microsegundos]
-            mean_message_length=120e-3, # ~ 200 bits a 0.8 bits por ns [en microsegundos]
-            MESSAGE_QUEUE_LENGTH=512  # Limite estandar para router Cisco
-        ),
-        ONU(
-            mean_arrival_period=30, #  cada 500 [microsegundos]
-            mean_message_length=120e-3, # ~ 200 bits a 0.8 bits por ns [en microsegundos]
-            MESSAGE_QUEUE_LENGTH=512  # Limite estandar para router Cisco
-        ),
-        ONU(
-            mean_arrival_period=30, #  cada 500 [microsegundos]
-            mean_message_length=40e-3, # ~ 200 bits a 0.8 bits por ns [en microsegundos]
-            MESSAGE_QUEUE_LENGTH=512  # Limite estandar para router Cisco
-        ),
-        ONU(
-            mean_arrival_period=30, #  cada 500 [microsegundos]
-            mean_message_length=40e-3, # ~ 200 bits a 0.8 bits por ns [en microsegundos]
-            MESSAGE_QUEUE_LENGTH=512  # Limite estandar para router Cisco
-        ),
-        ONU(
-            mean_arrival_period=30, #  cada 500 [microsegundos]
-            mean_message_length=40e-3, # ~ 200 bits a 0.8 bits por ns [en microsegundos]
-            MESSAGE_QUEUE_LENGTH=512  # Limite estandar para router Cisco
-        ),
-        ONU(
-            mean_arrival_period=30, #  cada 500 [microsegundos]
-            mean_message_length=40e-3, # ~ 200 bits a 0.8 bits por ns [en microsegundos]
-            MESSAGE_QUEUE_LENGTH=512  # Limite estandar para router Cisco
-        ),
-    ]
-    time_paths = np.arange(1e-3, 2_000e-3, 20e-3)
-    base_time_dist = [ time_paths[i] for i in range(len(onus)) ]
-    optimizer = OptimizerACO(
-        time_paths=time_paths,
-        n_onus=len(onus)
-    )
-    olt = OLT(
-        onus=onus,
-        time_distribution=base_time_dist,
-        optimizer=optimizer,
-        mode='OPTIMIZED',
-        verbose=False,
-        debug=False
-    )
-    t_start = time()
-    olt.simulate(
-        n_iter=10_000_000,
-        round_size=10
-    )
-    for onu in olt.onus:
-        print(f'queue len: {len(onu.message_queue)}')
-        p_blocked = onu.BLOCKED_MESSAGES / (onu.SENT_MESSAGES + onu.BLOCKED_MESSAGES)
-        print(f'blocked probs: {p_blocked}')
-    t_end = time()
-        
-    print('TIME PATHS')
-    print(optimizer.time_paths)
-    print('PHEROMONES')
-    print(optimizer.pheromones)
-
-    print(f'elapsed {t_end - t_start} seconds')
+            self.round(round_size=round_size, N=n_iter)
