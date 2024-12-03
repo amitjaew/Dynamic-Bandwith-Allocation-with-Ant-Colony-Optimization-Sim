@@ -96,7 +96,7 @@ if __name__ == '__main__':
     )
     t_start = time()
     olt.simulate(
-        n_iter=100_000,
+        n_iter=1_000_000,
         round_size=10
     )
     for onu in olt.onus:
